@@ -1,17 +1,10 @@
-# Credentials Google OAuth2 — NE JAMAIS committer ces fichiers !
 credentials.json
 credentials/credentials.json
 token.json
 
-# Variables d'environnement
 .env
 
-# Environnements Python
 .venv/
 __pycache__/
 *.pyc
 *.pyo
-
-# IDE
-.vscode/
-.idea/

@@ -250,7 +250,7 @@ async function sendReply() {
     }
 }
 
-/* ── STT — Groq Whisper ──────────────────────────────────── */
+/* STT Groq Whisper */
 let _recorder = null;
 let _chunks = [];
 let _recording = false;
@@ -325,7 +325,7 @@ async function sendToWhisper() {
     }
 }
 
-/* ── TTS — Groq Orpheus ──────────────────────────────────── */
+/* TTS Groq Orpheus */
 let _audio = null;
 
 async function speakSummary() {
@@ -371,5 +371,5 @@ async function speakSummary() {
     }
 }
 
-/* ── Init ────────────────────────────────────────────────── */
+/* Init */
 loadEmails();

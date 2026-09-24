@@ -1,6 +1,6 @@
 """
 Agent IA  Résumé, 
-classification et rédaction de réponses via Groq (Llama 3.3 70B).
+classification et rédaction de réponses via Groq qwen3.8.
 """
 import json
 import os

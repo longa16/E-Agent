@@ -1,5 +1,6 @@
 """
-API FastAPI — Routes de l'agent email Gmail.
+API FastAPI
+ Routes de l'agent email Gmail.
 """
 import os
 import tempfile
@@ -40,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir les fichiers statiques (CSS, JS)
+# Servir les fichiers statiques
 STATIC_DIR = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -94,7 +95,7 @@ def get_emails(
     Liste les emails de la boîte Gmail.
     
     - `query` supporte toute la syntaxe Gmail : `is:unread`, `from:x@y.com`, `subject:facture`, etc.
-    - `process=true` active le résumé et la classification IA (plus lent).
+    - `process=true` active le résumé et la classification IA.
     """
     try:
         service = get_service()
@@ -199,7 +200,7 @@ async def transcribe(file: UploadFile = File(...)):
         audio_bytes = await file.read()
         filename = file.filename or "audio.webm"
 
-        # Groq attend un tuple (nom_fichier, bytes, mime_type)
+        # renvoyer un tuple à groq
         transcription = _groq.audio.transcriptions.create(
             file=(filename, audio_bytes),
             model="whisper-large-v3-turbo",
@@ -215,7 +216,7 @@ async def transcribe(file: UploadFile = File(...)):
 @app.post("/speak", tags=["TTS"])
 async def speak(request: SpeakRequest):
     """
-    Synthèse vocale via Groq Orpheus (canopylabs/orpheus-v1-english).
+    Synthèse vocale via Groq Orpheus.
     Retourne un flux audio WAV à jouer directement dans le navigateur.
     Voix disponibles : tara, leah, jess, leo, dan, mia, zac, zoe
     """
@@ -223,7 +224,7 @@ async def speak(request: SpeakRequest):
         response = _groq.audio.speech.create(
             model="canopylabs/orpheus-v1-english",
             voice=request.voice,
-            input=request.text[:4000],  # limite raisonnable
+            input=request.text[:4000],
             response_format="wav",
         )
         audio_bytes = response.read()
