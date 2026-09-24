@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MailAgent</title>
+  <meta name="description" content="Agent IA pour gérer votre boîte Gmail." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+
+  <!--Sidebar-->
+  <aside class="sidebar">
+
+    <div class="sidebar-top">
+      <div class="brand">MailAgent</div>
+      <div class="sidebar-actions">
+        <button class="icon-btn" title="Actualiser" onclick="loadEmails()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+        </button>
+        <button class="icon-btn ai-btn" title="Analyser avec IA" onclick="loadEmails(true)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+          </svg>
+          IA
+        </button>
+      </div>
+    </div>
+
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+      </svg>
+      <input type="text" id="search-input" placeholder="Rechercher" oninput="filterEmails(this.value)"
+        autocomplete="off" />
+    </div>
+
+    <nav class="filters">
+      <button class="filter active" data-filter="all" onclick="setFilter(this,'all')">Boîte de réception</button>
+      <button class="filter" data-filter="UNREAD" onclick="setFilter(this,'UNREAD')">Non lus</button>
+      <button class="filter" data-filter="reply_needed" onclick="setFilter(this,'reply_needed')">À répondre</button>
+      <button class="filter" data-filter="important" onclick="setFilter(this,'important')">Importants</button>
+    </nav>
+
+    <div class="divider"></div>
+
+    <div class="email-list" id="email-list">
+      <div class="list-state" id="loading-list">
+        <div class="spin"></div>
+        Chargement…
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Reading pane -->
+  <main class="pane" id="pane">
+
+    <div class="pane-empty" id="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
+        stroke-linecap="round" stroke-linejoin="round" opacity=".25">
+        <rect width="16" height="13" x="6" y="4" rx="2" />
+        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        <path d="M2 7v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7" />
+      </svg>
+      <p>Sélectionnez un email</p>
+    </div>
+
+    <article class="email-view hidden" id="email-detail">
+
+      <header class="email-head">
+        <h1 class="email-subject" id="detail-subject">—</h1>
+        <div class="email-from">
+          <div class="avatar" id="detail-avatar"></div>
+          <div class="from-info">
+            <span class="from-name" id="detail-sender"></span>
+            <span class="from-addr" id="detail-email"></span>
+          </div>
+          <span class="email-date" id="detail-date"></span>
+        </div>
+        <div class="email-chips" id="detail-tags"></div>
+      </header>
+
+      <!-- AI summary -->
+      <section class="ai-block" id="ai-panel">
+        <div class="ai-header">
+          <span class="ai-pill">IA</span>
+          <span class="ai-model">Résumé du mail</span>
+          <div class="ai-spin hidden" id="ai-loading">
+            <div class="spin sm"></div>
+          </div>
+          <button class="btn-speak" id="btn-speak" onclick="speakSummary()" title="Écouter le résumé" disabled>
+            <svg id="speak-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+          </button>
+        </div>
+        <p class="ai-text" id="ai-summary">Analyse en cours…</p>
+        <div class="ai-chips" id="ai-classification"></div>
+      </section>
+
+      <!-- Body -->
+      <section class="email-body" id="detail-body"></section>
+
+      <!-- Reply -->
+      <section class="reply-box">
+        <div class="reply-bar">
+          <span class="reply-label">Répondre</span>
+          <div class="reply-bar-right">
+            <button class="btn-mic" id="btn-mic" onclick="toggleRecording()" title="Dicter">
+              <svg id="mic-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+              <span id="mic-label">Dicter</span>
+            </button>
+            <button class="btn-draft" id="btn-draft" onclick="generateDraft()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+              </svg>
+              Générer avec l'IA
+            </button>
+          </div>
+        </div>
+        <textarea id="reply-textarea" placeholder="Écrivez votre réponse…" rows="5"></textarea>
+        <div class="reply-foot">
+          <button class="btn-send" id="btn-send" onclick="sendReply()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z" />
+              <path d="M22 2 11 13" />
+            </svg>
+            Envoyer
+          </button>
+        </div>
+      </section>
+
+    </article>
+  </main>
+
+  <div class="toast hidden" id="toast"></div>
+  <script src="/static/app.js"></script>
+</body>
+
+</html>
