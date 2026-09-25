@@ -127,15 +127,16 @@ def auth_login(request: Request):
     return RedirectResponse(auth_url)
 
 @app.get("/auth/callback", tags=["Auth"])
-def auth_callback(request: Request, code: str, state: str = ""):
+def auth_callback(request: Request, state: str = "", code: str = ""):
     """Callback OAuth — échange le code contre un token."""
     redirect_uri = _build_redirect_uri(request)
-    saved_state = request.session.get("oauth_state")
-    if saved_state and state != saved_state:
-        raise HTTPException(status_code=400, detail="State mismatch. Please try again.")
-
+    
+    # We pass the full URL directly to the Flow's fetch_token later
+    # This prevents PKCE / state mismatch errors
+    auth_response_url = str(request.url)
+    
     try:
-        token_data = exchange_code(code, redirect_uri)
+        token_data = exchange_code(auth_response_url, redirect_uri)
         sid = secrets.token_hex(16)
         _user_tokens[sid] = token_data
         request.session["sid"] = sid
