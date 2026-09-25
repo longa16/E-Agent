@@ -66,7 +66,7 @@ def get_gmail_service():
 
 # ── Web auth (OAuth redirect — deployment) ──────────────────────
 
-def get_auth_url(redirect_uri: str) -> tuple[str, str]:
+def get_auth_url(redirect_uri: str) -> tuple[str, str, str]:
     """Generates a Google OAuth consent URL for web flow."""
     config = _get_credentials_config()
     # Normalize: accept both "web" and "installed" credential types
@@ -82,17 +82,16 @@ def get_auth_url(redirect_uri: str) -> tuple[str, str]:
             }
         }
 
-    # Disable pkce to avoid session sync issues across proxy
     flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
     auth_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
     )
-    return auth_url, state
+    return auth_url, state, flow.code_verifier
 
 
-def exchange_code(code: str, redirect_uri: str) -> dict:
+def exchange_code(authorization_response: str, redirect_uri: str, code_verifier: str) -> dict:
     """Exchanges an authorization code for credentials. Returns token data as dict."""
     config = _get_credentials_config()
     if "installed" in config and "web" not in config:
@@ -107,8 +106,11 @@ def exchange_code(code: str, redirect_uri: str) -> dict:
             }
         }
 
-    flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
-    flow.fetch_token(code=code)
+    flow = Flow.from_client_config(
+        config, scopes=SCOPES, redirect_uri=redirect_uri,
+        code_verifier=code_verifier,             # <- on réinjecte le même verifier
+    )
+    flow.fetch_token(authorization_response=authorization_response)
     return json.loads(flow.credentials.to_json())
 
 def build_service_from_token(token_data: dict):

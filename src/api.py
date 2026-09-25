@@ -120,28 +120,25 @@ class SpeakRequest(BaseModel):
 
 @app.get("/auth/login", tags=["Auth"])
 def auth_login(request: Request):
-    """Redirige vers l'écran de consentement Google."""
     redirect_uri = _build_redirect_uri(request)
-    auth_url, state = get_auth_url(redirect_uri)
+    auth_url, state, code_verifier = get_auth_url(redirect_uri)
     request.session["oauth_state"] = state
+    request.session["oauth_code_verifier"] = code_verifier   # <- stocké en session
     return RedirectResponse(auth_url)
 
 @app.get("/auth/callback", tags=["Auth"])
 def auth_callback(request: Request, state: str = "", code: str = ""):
-    """Callback OAuth — échange le code contre un token."""
     redirect_uri = _build_redirect_uri(request)
-    
-    # We pass the full URL directly to the Flow's fetch_token later
-    # This prevents PKCE / state mismatch errors
     auth_response_url = str(request.url)
-    
+    code_verifier = request.session.get("oauth_code_verifier")
+
     try:
-        token_data = exchange_code(auth_response_url, redirect_uri)
+        token_data = exchange_code(auth_response_url, redirect_uri, code_verifier)
         sid = secrets.token_hex(16)
         _user_tokens[sid] = token_data
         request.session["sid"] = sid
-        # Clear the temporary state
         request.session.pop("oauth_state", None)
+        request.session.pop("oauth_code_verifier", None)
         return RedirectResponse("/")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erreur d'authentification : {e}")
