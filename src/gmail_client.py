@@ -82,6 +82,7 @@ def get_auth_url(redirect_uri: str) -> tuple[str, str]:
             }
         }
 
+    # Disable pkce to avoid session sync issues across proxy
     flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
     auth_url, state = flow.authorization_url(
         access_type="offline",
@@ -109,7 +110,6 @@ def exchange_code(code: str, redirect_uri: str) -> dict:
     flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
     flow.fetch_token(code=code)
     return json.loads(flow.credentials.to_json())
-
 
 def build_service_from_token(token_data: dict):
     """Builds a Gmail service from stored token data (web mode)."""

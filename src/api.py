@@ -126,16 +126,21 @@ def auth_login(request: Request):
     request.session["oauth_state"] = state
     return RedirectResponse(auth_url)
 
-
 @app.get("/auth/callback", tags=["Auth"])
 def auth_callback(request: Request, code: str, state: str = ""):
     """Callback OAuth — échange le code contre un token."""
     redirect_uri = _build_redirect_uri(request)
+    saved_state = request.session.get("oauth_state")
+    if saved_state and state != saved_state:
+        raise HTTPException(status_code=400, detail="State mismatch. Please try again.")
+
     try:
         token_data = exchange_code(code, redirect_uri)
         sid = secrets.token_hex(16)
         _user_tokens[sid] = token_data
         request.session["sid"] = sid
+        # Clear the temporary state
+        request.session.pop("oauth_state", None)
         return RedirectResponse("/")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erreur d'authentification : {e}")
