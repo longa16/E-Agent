@@ -1,7 +1,7 @@
 """
 API FastAPI
  Routes de l'agent email Gmail.
- Supporte le mode local (token.json) et le mode web (OAuth par utilisateur).
+ Supporte le mode local et le mode web.
 """
 import os
 import secrets
@@ -39,7 +39,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# Session middleware — stocke un session ID signé dans un cookie
+# Session middleware qui stocke un session ID signé dans un cookie
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", secrets.token_hex(32)),
@@ -61,17 +61,17 @@ app.add_middleware(
 STATIC_DIR = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# ── In-memory token store (keyed by session id) ─────────────────
+# In-memory token store
 _user_tokens: dict[str, dict] = {}
 
-# Service Gmail local (mode dev avec token.json)
+# Service Gmail local
 _local_service = None
 
 
 def _get_service(request: Request):
     """
     Returns a Gmail service for the current user.
-    Priority: 1) Per-user session token (web) → 2) Local token.json (dev)
+    Priority: 1) Per-user session token → 2) Local token.json
     """
     global _local_service
 
@@ -81,7 +81,7 @@ def _get_service(request: Request):
         try:
             return build_service_from_token(_user_tokens[sid])
         except Exception:
-            # Token expired or invalid — clear session
+            # Token expired or invalid, clear session
             del _user_tokens[sid]
             request.session.clear()
 
@@ -101,7 +101,7 @@ def _build_redirect_uri(request: Request) -> str:
     return f"{scheme}://{host}/auth/callback"
 
 
-# ── Schémas ──────────────────────────────────────────────────────
+# Schémas
 
 class ReplyRequest(BaseModel):
     body: str
@@ -116,7 +116,7 @@ class SpeakRequest(BaseModel):
     voice: str = "hannah"
 
 
-# ── Auth routes ──────────────────────────────────────────────────
+#  Auth routes
 
 @app.get("/auth/login", tags=["Auth"])
 def auth_login(request: Request):
@@ -180,7 +180,7 @@ def auth_logout(request: Request):
     return RedirectResponse("/")
 
 
-# ── Routes principales ───────────────────────────────────────────
+# Routes principales
 
 @app.get("/", response_class=HTMLResponse, tags=["Interface"])
 def root():

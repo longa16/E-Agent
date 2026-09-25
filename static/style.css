@@ -745,7 +745,7 @@ textarea#reply-textarea::placeholder {
     background: #d8d8d8;
 }
 
-/* ── Login screen ────────────────────────────────────────────── */
+/* Login screen */
 .login-screen {
     position: fixed;
     inset: 0;
@@ -775,8 +775,15 @@ textarea#reply-textarea::placeholder {
 }
 
 @keyframes loginFadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .login-icon {
@@ -785,7 +792,7 @@ textarea#reply-textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(194,98,46,.15), rgba(194,98,46,.05));
+    background: linear-gradient(135deg, rgba(194, 98, 46, .15), rgba(194, 98, 46, .05));
     border: 1px solid rgba(194, 98, 46, .2);
     border-radius: 16px;
     color: var(--accent);
@@ -828,12 +835,12 @@ textarea#reply-textarea::placeholder {
     cursor: pointer;
     text-decoration: none;
     transition: transform var(--ease), box-shadow var(--ease);
-    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
 }
 
 .login-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
 }
 
 .login-btn:active {
@@ -855,7 +862,7 @@ textarea#reply-textarea::placeholder {
     font-size: 13px;
 }
 
-/* ── Sidebar bottom (user + logout) ─────────────────────────── */
+/*  Sidebar bottom */
 .sidebar-bottom {
     display: flex;
     align-items: center;

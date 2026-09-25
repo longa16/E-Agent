@@ -1,6 +1,6 @@
 """
-Gmail Client — Authentification OAuth2 et opérations Gmail.
-Supporte le mode local (token.json) et le mode web (OAuth redirect).
+Gmail Client Authentification OAuth2 et opérations Gmail.
+Supporte le mode local et le mode web.
 """
 import json
 import os
@@ -26,7 +26,7 @@ TOKEN_PATH = "token.json"
 CREDENTIALS_PATH = "credentials.json"
 
 
-# ── Credentials helpers ──────────────────────────────────────────
+# Credentials helpers
 
 def _get_credentials_config() -> dict:
     """Reads Google OAuth credentials from env var or file."""
@@ -42,10 +42,10 @@ def _get_credentials_config() -> dict:
     )
 
 
-# ── Local auth (desktop — setup_gmail.py / dev) ─────────────────
+# Local auth
 
 def get_gmail_service():
-    """Authentifie via token.json local (mode dev/desktop)."""
+    """Authentifie via token.json local."""
     creds = None
 
     if os.path.exists(TOKEN_PATH):
@@ -64,7 +64,7 @@ def get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
-# ── Web auth (OAuth redirect — deployment) ──────────────────────
+# Web auth
 
 def get_auth_url(redirect_uri: str) -> tuple[str, str, str]:
     """Generates a Google OAuth consent URL for web flow."""
@@ -121,7 +121,7 @@ def build_service_from_token(token_data: dict):
     return build("gmail", "v1", credentials=creds)
 
 
-# ── Helpers ──────────────────────────────────────────────────────
+# Helpers
 
 def _get_header(headers: list, name: str) -> str:
     """Extrait la valeur d'un header par son nom."""
@@ -183,7 +183,7 @@ def _format_message(msg_data: dict) -> dict:
     }
 
 
-# ── Opérations Gmail ────────────────────────────────────────────
+# Opérations Gmail
 
 def list_emails(service, max_results: int = 10, query: str = "is:inbox") -> List[dict]:
     """Liste les emails selon une requête Gmail."""

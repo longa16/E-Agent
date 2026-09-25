@@ -65,7 +65,7 @@ function toast(msg, type = '') {
     _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
 }
 
-/* ── Auth ────────────────────────────────────────────────────── */
+/* Auth */
 
 async function checkAuth() {
     const loginScreen = $('login-screen');
@@ -102,7 +102,7 @@ async function checkAuth() {
             pane.classList.add('hidden');
         }
     } catch (e) {
-        // Network error — show login
+        // Network error show login
         loginCard.classList.remove('hidden');
         loading.classList.add('hidden');
     }
@@ -120,7 +120,7 @@ async function loadEmails(withAI = false) {
     try {
         const r = await fetch(`/emails?max_results=20${withAI ? '&process=true' : ''}`);
         if (r.status === 401) {
-            // Session expired — redirect to login
+            // Session expired redirect to login
             window.location.href = '/auth/logout';
             return;
         }
@@ -429,5 +429,5 @@ async function speakSummary() {
     }
 }
 
-/* Init — check auth first */
+/* Init check auth first */
 checkAuth();
