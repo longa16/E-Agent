@@ -2,6 +2,7 @@
 let allEmails = [];
 let currentEmail = null;
 let activeFilter = 'all';
+let currentUserEmail = '';
 
 const $ = id => document.getElementById(id);
 const el = tag => document.createElement(tag);
@@ -64,11 +65,65 @@ function toast(msg, type = '') {
     _toastTimer = setTimeout(() => t.classList.add('hidden'), 3500);
 }
 
+/* ── Auth ────────────────────────────────────────────────────── */
+
+async function checkAuth() {
+    const loginScreen = $('login-screen');
+    const sidebar = $('app-sidebar');
+    const pane = $('app-pane');
+    const loading = $('login-loading');
+    const loginCard = loginScreen.querySelector('.login-card');
+
+    // Show loading state
+    loginCard.classList.add('hidden');
+    loading.classList.remove('hidden');
+
+    try {
+        const r = await fetch('/auth/status');
+        const data = await r.json();
+
+        if (data.authenticated) {
+            currentUserEmail = data.email || '';
+            $('user-email-label').textContent = currentUserEmail;
+
+            // Hide login, show app
+            loginScreen.classList.add('hidden');
+            sidebar.classList.remove('hidden');
+            pane.classList.remove('hidden');
+
+            // Load emails
+            loadEmails();
+        } else {
+            // Show login screen
+            loginCard.classList.remove('hidden');
+            loading.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            sidebar.classList.add('hidden');
+            pane.classList.add('hidden');
+        }
+    } catch (e) {
+        // Network error — show login
+        loginCard.classList.remove('hidden');
+        loading.classList.add('hidden');
+    }
+}
+
+function showUserInfo() {
+    if (currentUserEmail) {
+        toast(`Connecté : ${currentUserEmail}`, 'success');
+    }
+}
+
 /* Chargement emails  */
 async function loadEmails(withAI = false) {
     $('email-list').innerHTML = `<div class="list-state"><div class="spin"></div>${withAI ? 'Analyse IA…' : 'Chargement…'}</div>`;
     try {
         const r = await fetch(`/emails?max_results=20${withAI ? '&process=true' : ''}`);
+        if (r.status === 401) {
+            // Session expired — redirect to login
+            window.location.href = '/auth/logout';
+            return;
+        }
         if (!r.ok) throw new Error(`Erreur ${r.status}`);
         const data = await r.json();
         allEmails = data.emails || [];
@@ -148,6 +203,7 @@ async function openEmail(id) {
 
     try {
         const r = await fetch(`/emails/${id}?summarize=true`);
+        if (r.status === 401) { window.location.href = '/auth/logout'; return; }
         if (!r.ok) throw new Error(`Erreur ${r.status}`);
         const data = await r.json();
         currentEmail = data.email;
@@ -210,6 +266,7 @@ async function generateDraft() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ instructions: '' }),
         });
+        if (r.status === 401) { window.location.href = '/auth/logout'; return; }
         if (!r.ok) throw new Error(`Erreur ${r.status}`);
         const data = await r.json();
         $('reply-textarea').value = data.draft || '';
@@ -239,6 +296,7 @@ async function sendReply() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ body }),
         });
+        if (r.status === 401) { window.location.href = '/auth/logout'; return; }
         if (!r.ok) throw new Error(`Erreur ${r.status}`);
         $('reply-textarea').value = '';
         toast('Envoyé', 'success');
@@ -371,5 +429,5 @@ async function speakSummary() {
     }
 }
 
-/* Init */
-loadEmails();
+/* Init — check auth first */
+checkAuth();

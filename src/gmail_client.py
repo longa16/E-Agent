@@ -1,6 +1,8 @@
 """
-Gmail Client, Authentification OAuth2 et opérations Gmail.
+Gmail Client — Authentification OAuth2 et opérations Gmail.
+Supporte le mode local (token.json) et le mode web (OAuth redirect).
 """
+import json
 import os
 import base64
 from email.mime.multipart import MIMEMultipart
@@ -9,7 +11,7 @@ from typing import List, Optional
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import InstalledAppFlow, Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -24,8 +26,26 @@ TOKEN_PATH = "token.json"
 CREDENTIALS_PATH = "credentials.json"
 
 
+# ── Credentials helpers ──────────────────────────────────────────
+
+def _get_credentials_config() -> dict:
+    """Reads Google OAuth credentials from env var or file."""
+    env_creds = os.getenv("GOOGLE_CREDENTIALS")
+    if env_creds:
+        return json.loads(env_creds)
+    if os.path.exists(CREDENTIALS_PATH):
+        with open(CREDENTIALS_PATH) as f:
+            return json.load(f)
+    raise FileNotFoundError(
+        "No Google credentials found. Set GOOGLE_CREDENTIALS env var "
+        "or place credentials.json at the project root."
+    )
+
+
+# ── Local auth (desktop — setup_gmail.py / dev) ─────────────────
+
 def get_gmail_service():
-    """Authentifie l'utilisateur via OAuth2 et retourne le service Gmail."""
+    """Authentifie via token.json local (mode dev/desktop)."""
     creds = None
 
     if os.path.exists(TOKEN_PATH):
@@ -44,7 +64,62 @@ def get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
-# Helpers
+# ── Web auth (OAuth redirect — deployment) ──────────────────────
+
+def get_auth_url(redirect_uri: str) -> tuple[str, str]:
+    """Generates a Google OAuth consent URL for web flow."""
+    config = _get_credentials_config()
+    # Normalize: accept both "web" and "installed" credential types
+    if "installed" in config and "web" not in config:
+        installed = config["installed"]
+        config = {
+            "web": {
+                "client_id": installed["client_id"],
+                "client_secret": installed["client_secret"],
+                "auth_uri": installed.get("auth_uri", "https://accounts.google.com/o/oauth2/auth"),
+                "token_uri": installed.get("token_uri", "https://oauth2.googleapis.com/token"),
+                "redirect_uris": [redirect_uri],
+            }
+        }
+
+    flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
+    auth_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    return auth_url, state
+
+
+def exchange_code(code: str, redirect_uri: str) -> dict:
+    """Exchanges an authorization code for credentials. Returns token data as dict."""
+    config = _get_credentials_config()
+    if "installed" in config and "web" not in config:
+        installed = config["installed"]
+        config = {
+            "web": {
+                "client_id": installed["client_id"],
+                "client_secret": installed["client_secret"],
+                "auth_uri": installed.get("auth_uri", "https://accounts.google.com/o/oauth2/auth"),
+                "token_uri": installed.get("token_uri", "https://oauth2.googleapis.com/token"),
+                "redirect_uris": [redirect_uri],
+            }
+        }
+
+    flow = Flow.from_client_config(config, scopes=SCOPES, redirect_uri=redirect_uri)
+    flow.fetch_token(code=code)
+    return json.loads(flow.credentials.to_json())
+
+
+def build_service_from_token(token_data: dict):
+    """Builds a Gmail service from stored token data (web mode)."""
+    creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    return build("gmail", "v1", credentials=creds)
+
+
+# ── Helpers ──────────────────────────────────────────────────────
 
 def _get_header(headers: list, name: str) -> str:
     """Extrait la valeur d'un header par son nom."""
@@ -106,7 +181,7 @@ def _format_message(msg_data: dict) -> dict:
     }
 
 
-# Opérations Gmail
+# ── Opérations Gmail ────────────────────────────────────────────
 
 def list_emails(service, max_results: int = 10, query: str = "is:inbox") -> List[dict]:
     """Liste les emails selon une requête Gmail."""
@@ -184,5 +259,5 @@ def mark_as_read(service, email_id: str) -> None:
 
 
 def search_emails(service, query: str, max_results: int = 10) -> List[dict]:
-    """Recherche des emails avec un filtre Gmail (ex: 'from:boss@company.com is:unread')."""
+    """Recherche des emails avec un filtre Gmail."""
     return list_emails(service, max_results=max_results, query=query)
