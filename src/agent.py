@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 _client = Groq(
     api_key=os.getenv("GROQ_API_KEY"),
-    timeout=30.0,  # timeout global pour éviter les requêtes qui pendent
+    timeout=30.0,
 )
 # modèle principal + fallback
-MODEL = "qwen/qwen3.8-27b"
+MODEL = "openai/gpt-oss-120b"
 FALLBACK_MODEL = "llama-3.1-8b-instant"
 MAX_RETRIES = 3
 
