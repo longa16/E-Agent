@@ -89,10 +89,7 @@ def _get_service(request: Request):
     sid = request.session.get("sid")
     if sid and sid in _user_tokens:
         try:
-            service = build_service_from_token(_user_tokens[sid])
-            # Quick validation: test the service works
-            service.users().getProfile(userId="me").execute()
-            return service
+            return build_service_from_token(_user_tokens[sid])
         except Exception as e:
             logger.warning(f"Token invalid for session {sid[:8]}...: {e}")
             # Token expired or invalid, clear session
@@ -245,6 +242,12 @@ def get_emails(
     except HTTPException:
         raise
     except Exception as e:
+        # Detect Gmail auth errors and return 401
+        err_str = str(e).lower()
+        if any(kw in err_str for kw in ["invalid credentials", "token has been expired", "invalid_grant", "401", "403"]):
+            logger.warning(f"Gmail auth error in list_emails: {e}")
+            raise HTTPException(status_code=401, detail="Session Gmail expirée. Veuillez vous reconnecter.")
+        logger.error(f"list_emails error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -282,6 +285,10 @@ def get_single_email(
     except HTTPException:
         raise
     except Exception as e:
+        err_str = str(e).lower()
+        if any(kw in err_str for kw in ["invalid credentials", "token has been expired", "invalid_grant", "401", "403"]):
+            logger.warning(f"Gmail auth error in get_single_email: {e}")
+            raise HTTPException(status_code=401, detail="Session Gmail expirée. Veuillez vous reconnecter.")
         logger.error(f"get_single_email error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
