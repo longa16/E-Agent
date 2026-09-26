@@ -142,7 +142,7 @@ async function loadEmails(withAI = false) {
         } else {
             _loadRetryCount = 0;
             $('email-list').innerHTML = `<div class="list-state" style="color:#dc2626">
-                <div style="margin-bottom:8px">⚠️ ${e.message}</div>
+                <div style="margin-bottom:8px">${e.message}</div>
                 <button onclick="loadEmails(false)" style="
                     padding:6px 16px;border-radius:8px;border:1px solid #444;
                     background:#232323;color:#fff;cursor:pointer;font-size:13px;

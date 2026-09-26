@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 try:
     _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
 except Exception as e:
-    logger.warning(f"Groq client init failed (TTS/STT will be unavailable): {e}")
+    logger.warning(f"Groq client init failed TTS/STT will be unavailable: {e}")
     _groq = None
 
 from src.agent import categorize_email, draft_reply, process_inbox, summarize_email
@@ -146,7 +146,7 @@ def auth_login(request: Request):
     redirect_uri = _build_redirect_uri(request)
     auth_url, state, code_verifier = get_auth_url(redirect_uri)
     request.session["oauth_state"] = state
-    request.session["oauth_code_verifier"] = code_verifier   # <- stocké en session
+    request.session["oauth_code_verifier"] = code_verifier   # stocké en session
     return RedirectResponse(auth_url)
 
 @app.get("/auth/callback", tags=["Auth"])

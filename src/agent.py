@@ -1,7 +1,6 @@
 """
 Agent IA  Résumé, 
 classification et rédaction de réponses via Groq.
-Retry automatique avec backoff exponentiel.
 """
 import json
 import logging
@@ -21,7 +20,7 @@ _client = Groq(
     timeout=30.0,
 )
 # modèle principal + fallback
-MODEL = "openai/gpt-oss-120b"
+MODEL = "qwen/qwen3.8-27b"
 FALLBACK_MODEL = "llama-3.1-8b-instant"
 MAX_RETRIES = 3
 
@@ -43,7 +42,7 @@ def _chat(prompt: str) -> str:
             except Exception as e:
                 last_error = e
                 error_str = str(e).lower()
-                # Retry sur erreurs transitoires (rate limit, 500, 503, timeout)
+                # Retry sur erreurs transitoires
                 is_retryable = any(kw in error_str for kw in [
                     "rate_limit", "429", "500", "502", "503",
                     "timeout", "overloaded", "unavailable",
@@ -58,11 +57,11 @@ def _chat(prompt: str) -> str:
                     time.sleep(wait)
                     continue
                 elif not is_retryable:
-                    # Erreur non-retryable (auth, bad request) → essayer le fallback
+                    # Erreur non-retryable
                     logger.warning(f"Non-retryable error with {model}: {e}")
                     break
                 else:
-                    # Dernier retry échoué → essayer le fallback model
+                    # Dernier retry échoué essayer le fallback model
                     logger.warning(f"All retries exhausted for {model}: {e}")
                     break
 
@@ -154,7 +153,7 @@ def process_inbox(emails: list) -> list:
     import concurrent.futures
 
     processed = []
-    # Utilsation de threads pour paralléliser l'analyse (max 5 en même temps pour éviter le rate-limit Groq)
+    # Utilsation de threads pour paralléliser l'analyse
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         results = executor.map(_process_single_email, emails)
         for res in results:

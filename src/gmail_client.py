@@ -108,13 +108,13 @@ def exchange_code(authorization_response: str, redirect_uri: str, code_verifier:
 
     flow = Flow.from_client_config(
         config, scopes=SCOPES, redirect_uri=redirect_uri,
-        code_verifier=code_verifier,             # <- on réinjecte le même verifier
+        code_verifier=code_verifier,             # on réinjecte le même verifier
     )
     flow.fetch_token(authorization_response=authorization_response)
     return json.loads(flow.credentials.to_json())
 
 def build_service_from_token(token_data: dict):
-    """Builds a Gmail service from stored token data (web mode).
+    """Builds a Gmail service from stored token data.
     
     Raises Exception if credentials are expired and cannot be refreshed.
     """
