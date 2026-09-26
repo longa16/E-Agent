@@ -114,10 +114,21 @@ def exchange_code(authorization_response: str, redirect_uri: str, code_verifier:
     return json.loads(flow.credentials.to_json())
 
 def build_service_from_token(token_data: dict):
-    """Builds a Gmail service from stored token data (web mode)."""
+    """Builds a Gmail service from stored token data (web mode).
+    
+    Raises Exception if credentials are expired and cannot be refreshed.
+    """
     creds = Credentials.from_authorized_user_info(token_data, SCOPES)
     if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+            # Update the stored token data with refreshed credentials
+            refreshed = json.loads(creds.to_json())
+            token_data.update(refreshed)
+        except Exception as e:
+            raise Exception(f"Impossible de rafraîchir le token : {e}")
+    elif creds and creds.expired and not creds.refresh_token:
+        raise Exception("Token expiré sans refresh token. Reconnexion nécessaire.")
     return build("gmail", "v1", credentials=creds)
 
 

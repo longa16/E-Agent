@@ -3,6 +3,7 @@ API FastAPI
  Routes de l'agent email Gmail.
  Supporte le mode local et le mode web.
 """
+import logging
 import os
 import secrets
 import tempfile
@@ -19,7 +20,15 @@ from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
 
 load_dotenv()
-_groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+try:
+    _groq = Groq(api_key=os.getenv("GROQ_API_KEY"))
+except Exception as e:
+    logger.warning(f"Groq client init failed (TTS/STT will be unavailable): {e}")
+    _groq = None
 
 from src.agent import categorize_email, draft_reply, process_inbox, summarize_email
 from src.gmail_client import (
@@ -72,6 +81,7 @@ def _get_service(request: Request):
     """
     Returns a Gmail service for the current user.
     Priority: 1) Per-user session token → 2) Local token.json
+    Raises HTTP 401 for auth issues, not 500.
     """
     global _local_service
 
@@ -79,17 +89,33 @@ def _get_service(request: Request):
     sid = request.session.get("sid")
     if sid and sid in _user_tokens:
         try:
-            return build_service_from_token(_user_tokens[sid])
-        except Exception:
+            service = build_service_from_token(_user_tokens[sid])
+            # Quick validation: test the service works
+            service.users().getProfile(userId="me").execute()
+            return service
+        except Exception as e:
+            logger.warning(f"Token invalid for session {sid[:8]}...: {e}")
             # Token expired or invalid, clear session
-            del _user_tokens[sid]
+            _user_tokens.pop(sid, None)
             request.session.clear()
+            raise HTTPException(
+                status_code=401,
+                detail="Session expirée. Veuillez vous reconnecter."
+            )
 
     # Local mode: fallback to token.json
     if os.path.exists("token.json"):
-        if _local_service is None:
-            _local_service = get_gmail_service()
-        return _local_service
+        try:
+            if _local_service is None:
+                _local_service = get_gmail_service()
+            return _local_service
+        except Exception as e:
+            logger.error(f"Local token.json error: {e}")
+            _local_service = None
+            raise HTTPException(
+                status_code=401,
+                detail="Token local invalide. Veuillez vous reconnecter."
+            )
 
     raise HTTPException(status_code=401, detail="Non authentifié. Connectez-vous avec Gmail.")
 
@@ -236,14 +262,27 @@ def get_single_email(
         result: dict = {"email": email}
 
         if summarize:
-            result["summary"] = summarize_email(email)
-            result["classification"] = categorize_email(email)
+            try:
+                result["summary"] = summarize_email(email)
+            except Exception as e:
+                logger.error(f"Summarize failed for {email_id}: {e}")
+                result["summary"] = email.get("snippet", "Résumé temporairement indisponible.")
+            try:
+                result["classification"] = categorize_email(email)
+            except Exception as e:
+                logger.error(f"Categorize failed for {email_id}: {e}")
+                result["classification"] = {
+                    "category": "important",
+                    "priority": "medium",
+                    "reason": "Classification temporairement indisponible",
+                }
 
         return result
 
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"get_single_email error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -321,6 +360,8 @@ async def transcribe(file: UploadFile = File(...)):
     Accepte : webm, mp4, wav, mp3, ogg, m4a.
     """
     try:
+        if _groq is None:
+            raise HTTPException(status_code=503, detail="Service STT indisponible (clé API manquante)")
         audio_bytes = await file.read()
         filename = file.filename or "audio.webm"
 
@@ -345,6 +386,8 @@ async def speak(request_body: SpeakRequest):
     Voix disponibles : tara, leah, jess, leo, dan, mia, zac, zoe
     """
     try:
+        if _groq is None:
+            raise HTTPException(status_code=503, detail="Service TTS indisponible (clé API manquante)")
         response = _groq.audio.speech.create(
             model="canopylabs/orpheus-v1-english",
             voice=request_body.voice,

@@ -115,6 +115,9 @@ function showUserInfo() {
 }
 
 /* Chargement emails  */
+let _loadRetryCount = 0;
+const MAX_CLIENT_RETRIES = 2;
+
 async function loadEmails(withAI = false) {
     $('email-list').innerHTML = `<div class="list-state"><div class="spin"></div>${withAI ? 'Analyse IA…' : 'Chargement…'}</div>`;
     try {
@@ -127,11 +130,26 @@ async function loadEmails(withAI = false) {
         if (!r.ok) throw new Error(`Erreur ${r.status}`);
         const data = await r.json();
         allEmails = data.emails || [];
+        _loadRetryCount = 0; // reset on success
         renderList(allEmails);
         if (withAI) toast(`${allEmails.length} emails analysés`, 'success');
     } catch (e) {
-        $('email-list').innerHTML = `<div class="list-state" style="color:#dc2626">${e.message}</div>`;
-        toast(e.message, 'error');
+        _loadRetryCount++;
+        if (_loadRetryCount <= MAX_CLIENT_RETRIES) {
+            // Auto-retry after a short delay
+            toast(`Erreur de chargement, nouvelle tentative (${_loadRetryCount}/${MAX_CLIENT_RETRIES})…`, 'error');
+            setTimeout(() => loadEmails(withAI), 2000 * _loadRetryCount);
+        } else {
+            _loadRetryCount = 0;
+            $('email-list').innerHTML = `<div class="list-state" style="color:#dc2626">
+                <div style="margin-bottom:8px">⚠️ ${e.message}</div>
+                <button onclick="loadEmails(false)" style="
+                    padding:6px 16px;border-radius:8px;border:1px solid #444;
+                    background:#232323;color:#fff;cursor:pointer;font-size:13px;
+                ">Réessayer</button>
+            </div>`;
+            toast(e.message, 'error');
+        }
     }
 }
 
@@ -201,21 +219,41 @@ async function openEmail(id) {
     $('reply-textarea').value = '';
     $('btn-speak').disabled = true;
 
-    try {
-        const r = await fetch(`/emails/${id}?summarize=true`);
-        if (r.status === 401) { window.location.href = '/auth/logout'; return; }
-        if (!r.ok) throw new Error(`Erreur ${r.status}`);
-        const data = await r.json();
-        currentEmail = data.email;
-        render(data);
+    // Retry logic for email detail
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            const r = await fetch(`/emails/${id}?summarize=true`);
+            if (r.status === 401) { window.location.href = '/auth/logout'; return; }
+            if (!r.ok) {
+                const errData = await r.json().catch(() => ({}));
+                throw new Error(errData.detail || `Erreur ${r.status}`);
+            }
+            const data = await r.json();
+            currentEmail = data.email;
+            render(data);
 
-        // Marquer comme lu localement
-        const cached = allEmails.find(e => e.id === id);
-        if (cached) { cached.is_read = true; if (card) card.classList.remove('unread'); }
-    } catch (e) {
-        $('detail-subject').textContent = 'Erreur de chargement';
-        toast(e.message, 'error');
+            // Marquer comme lu localement
+            const cached = allEmails.find(e => e.id === id);
+            if (cached) { cached.is_read = true; if (card) card.classList.remove('unread'); }
+            return; // success, exit
+        } catch (e) {
+            lastErr = e;
+            if (attempt === 0) {
+                // Wait and retry once
+                await new Promise(r => setTimeout(r, 1500));
+            }
+        }
     }
+    // All retries failed
+    $('detail-subject').textContent = 'Erreur de chargement';
+    $('ai-loading').classList.add('hidden');
+    $('ai-summary').textContent = lastErr.message;
+    $('detail-body').innerHTML = `<button onclick="openEmail('${id}')" style="
+        padding:6px 16px;border-radius:8px;border:1px solid #444;
+        background:#232323;color:#fff;cursor:pointer;font-size:13px;margin-top:12px;
+    ">Réessayer l'analyse</button>`;
+    toast(lastErr.message, 'error');
 }
 
 /* Rendu détail */

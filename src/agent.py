@@ -1,29 +1,73 @@
 """
 Agent IA  Résumé, 
-classification et rédaction de réponses via Groq qwen3.8.
+classification et rédaction de réponses via Groq.
+Retry automatique avec backoff exponentiel.
 """
 import json
+import logging
 import os
 import re
+import time
 
 from dotenv import load_dotenv
 from groq import Groq
 
 load_dotenv()
 
-_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-# modèle 
-MODEL = "qwen/qwen3.8-27b"  
+logger = logging.getLogger(__name__)
+
+_client = Groq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    timeout=30.0,  # timeout global pour éviter les requêtes qui pendent
+)
+# modèle principal + fallback
+MODEL = "qwen/qwen3.8-27b"
+FALLBACK_MODEL = "llama-3.1-8b-instant"
+MAX_RETRIES = 3
 
 
 def _chat(prompt: str) -> str:
-    """Envoie un message au modèle et retourne la réponse texte."""
-    response = _client.chat.completions.create(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-    )
-    return response.choices[0].message.content.strip()
+    """Envoie un message au modèle avec retry automatique et fallback."""
+    last_error = None
+    models_to_try = [MODEL, FALLBACK_MODEL]
+
+    for model in models_to_try:
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = _client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                # Retry sur erreurs transitoires (rate limit, 500, 503, timeout)
+                is_retryable = any(kw in error_str for kw in [
+                    "rate_limit", "429", "500", "502", "503",
+                    "timeout", "overloaded", "unavailable",
+                    "internal", "capacity",
+                ])
+                if is_retryable and attempt < MAX_RETRIES - 1:
+                    wait = (2 ** attempt) + 0.5  # 1.5s, 2.5s, 4.5s
+                    logger.warning(
+                        f"Groq API error (model={model}, attempt={attempt+1}): {e}. "
+                        f"Retrying in {wait}s..."
+                    )
+                    time.sleep(wait)
+                    continue
+                elif not is_retryable:
+                    # Erreur non-retryable (auth, bad request) → essayer le fallback
+                    logger.warning(f"Non-retryable error with {model}: {e}")
+                    break
+                else:
+                    # Dernier retry échoué → essayer le fallback model
+                    logger.warning(f"All retries exhausted for {model}: {e}")
+                    break
+
+    # Si tous les modèles ont échoué
+    raise Exception(f"Échec API IA après plusieurs tentatives : {last_error}")
 
 
 # Fonctions de l'agent
