@@ -129,29 +129,35 @@ Date : {email['date']}
     return _chat(prompt)
 
 
+def _process_single_email(email: dict) -> dict:
+    try:
+        summary = summarize_email(email)
+        classification = categorize_email(email)
+        return {
+            **email,
+            "summary": summary,
+            "category": classification.get("category", "important"),
+            "priority": classification.get("priority", "medium"),
+            "reason": classification.get("reason", ""),
+        }
+    except Exception as e:
+        return {
+            **email,
+            "summary": email.get("snippet", ""),
+            "category": "important",
+            "priority": "medium",
+            "reason": f"Erreur de traitement : {e}",
+        }
+
 def process_inbox(emails: list) -> list:
     """Traite une liste d'emails : résumé + classification pour chacun."""
+    import concurrent.futures
+
     processed = []
-
-    for email in emails:
-        try:
-            summary = summarize_email(email)
-            classification = categorize_email(email)
-
-            processed.append({
-                **email,
-                "summary": summary,
-                "category": classification.get("category", "important"),
-                "priority": classification.get("priority", "medium"),
-                "reason": classification.get("reason", ""),
-            })
-        except Exception as e:
-            processed.append({
-                **email,
-                "summary": email.get("snippet", ""),
-                "category": "important",
-                "priority": "medium",
-                "reason": f"Erreur de traitement : {e}",
-            })
+    # Utilsation de threads pour paralléliser l'analyse (max 5 en même temps pour éviter le rate-limit Groq)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        results = executor.map(_process_single_email, emails)
+        for res in results:
+            processed.append(res)
 
     return processed
