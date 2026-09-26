@@ -150,7 +150,15 @@ def auth_login(request: Request):
     return RedirectResponse(auth_url)
 
 @app.get("/auth/callback", tags=["Auth"])
-def auth_callback(request: Request, state: str = "", code: str = ""):
+def auth_callback(request: Request, state: str = "", code: str = "", error: str = ""):
+    if error == "access_denied":
+        return HTMLResponse(
+            "<h2>Accès refusé</h2>"
+            "<p>Vous n'avez pas accordé les permissions nécessaires ou vous avez annulé l'authentification (peut-être à cause de l'avertissement Google). "
+            "Pour utiliser l'application, vous devez cliquer sur 'Paramètres avancés' puis 'Accéder à l'application' lors de la connexion.</p>"
+            "<br><a href='/'>Retour à l'accueil</a>"
+        )
+    
     redirect_uri = _build_redirect_uri(request)
     auth_response_url = str(request.url)
     code_verifier = request.session.get("oauth_code_verifier")
@@ -164,7 +172,9 @@ def auth_callback(request: Request, state: str = "", code: str = ""):
         request.session.pop("oauth_code_verifier", None)
         return RedirectResponse("/")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erreur d'authentification : {e}")
+        return HTMLResponse(
+            f"<h2>Erreur d'authentification</h2><p>{e}</p><br><a href='/'>Réessayer</a>"
+        )
 
 
 @app.get("/auth/status", tags=["Auth"])
