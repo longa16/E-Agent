@@ -3,7 +3,7 @@
 E-Agent est un agent IA connecté à votre boîte Gmail. Il utilise **Groq** pour résumer, classifier et rédiger des réponses à vos emails accessible via une **interface web** ou directement depuis **Discord**.
 
 ## Sytème design
-![System design de Longa](longa_system_design.svg)
+![System design de Longa](.svg)
 
 ## Fonctionnalités
 
