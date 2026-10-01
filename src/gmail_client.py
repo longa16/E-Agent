@@ -4,6 +4,10 @@ Supporte le mode local et le mode web.
 """
 import json
 import os
+
+# Allow OAuth2 over plain HTTP in local development.
+if not os.getenv("RAILWAY_ENVIRONMENT"):
+    os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 import base64
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText

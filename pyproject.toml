@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "discord-py>=2.3",
     "fastapi>=0.141.1",
     "google-api-python-client>=2.200.0",
     "google-auth>=2.58.0",
@@ -16,4 +17,12 @@ dependencies = [
     "python-dotenv>=1.2.3",
     "python-multipart>=0.0.32",
     "uvicorn>=0.53.0",
+    "discord-py>=2.3",
 ]
+
+[project.scripts]
+discord-bot = "bot.discord_bot:run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "bot*"]
